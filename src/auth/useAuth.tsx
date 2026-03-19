@@ -24,6 +24,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [systemRole, setSystemRole] = useState<SystemRole>("member");
 
   async function refresh() {
+    let finished = false;
+
+    const timeout = window.setTimeout(() => {
+      if (!finished) {
+        console.warn("Auth refresh timeout");
+        setLoading(false);
+        setSession(null);
+        setUser(null);
+        setProfile(null);
+        setSystemRole("member");
+      }
+    }, 5000);
+
     try {
       setLoading(true);
 
@@ -62,6 +75,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setProfile(null);
       setSystemRole("member");
     } finally {
+      finished = true;
+      window.clearTimeout(timeout);
       setLoading(false);
     }
   }

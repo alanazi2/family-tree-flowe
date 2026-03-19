@@ -2,10 +2,13 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from "
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabaseClient";
 
+export type SystemRole = "super_admin" | "family_admin" | "member";
+
 type AuthCtx = {
   loading: boolean;
   user: User | null;
   session: Session | null;
+  systemRole: SystemRole;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
 };
@@ -17,9 +20,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
 
+  // مؤقتًا نخليه member حتى يمر البناء
+  const [systemRole, setSystemRole] = useState<SystemRole>("member");
+
   async function refresh() {
     try {
       setLoading(true);
+
       const {
         data: { session },
         error,
@@ -29,10 +36,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setSession(session ?? null);
       setUser(session?.user ?? null);
+
+      // مؤقتًا
+      setSystemRole("member");
     } catch (error) {
       console.error("Auth refresh failed:", error);
       setSession(null);
       setUser(null);
+      setSystemRole("member");
     } finally {
       setLoading(false);
     }
@@ -46,6 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession ?? null);
       setUser(newSession?.user ?? null);
+      setSystemRole("member");
       setLoading(false);
     });
 
@@ -56,17 +68,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
     setSession(null);
     setUser(null);
+    setSystemRole("member");
   }
 
-  const value = useMemo(
+  const value = useMemo<AuthCtx>(
     () => ({
       loading,
       user,
       session,
+      systemRole,
       refresh,
       signOut,
     }),
-    [loading, user, session]
+    [loading, user, session, systemRole]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

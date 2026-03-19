@@ -1,53 +1,86 @@
 import dagre from "dagre";
 import type { Edge, Node } from "reactflow";
-import type { Person, Relationship } from "./treeTypes";
+import type { SeedRow } from "./treeTypes";
 
-export function buildChildrenMap(rels: Relationship[]) {
-  const map = new Map<string, string[]>();
-  for (const r of rels) {
-    const arr = map.get(r.parent_id) ?? [];
-    arr.push(r.child_id);
-    map.set(r.parent_id, arr);
-  }
-  return map;
-}
+const nodeWidth = 240;
+const nodeHeight = 88;
 
-export function findRoots(persons: Person[], rels: Relationship[]) {
-  const children = new Set(rels.map((r) => r.child_id));
-  return persons.filter((p) => !children.has(p.id));
-}
+export function buildFamilyTreeFromSeed(rows: SeedRow[]) {
+  const nodes: Node[] = [];
+  const edges: Edge[] = [];
 
-export function toNodesEdges(persons: Person[], rels: Relationship[]) {
-  const nodes: Node[] = persons.map((p) => ({
-    id: p.id,
-    type: "member",
-    position: { x: 0, y: 0 },
-    data: p,
-  }));
-
-  const edges: Edge[] = rels.map((r) => ({
-    id: r.id,
-    source: r.parent_id,
-    target: r.child_id,
-    animated: true,
-  }));
-
-  return { nodes, edges };
-}
-
-export function layoutDagre(nodes: Node[], edges: Edge[]) {
-  const g = new dagre.graphlib.Graph();
-  g.setDefaultEdgeLabel(() => ({}));
-  g.setGraph({ rankdir: "TB", nodesep: 40, ranksep: 70 });
-
-  nodes.forEach((n) => g.setNode(n.id, { width: 190, height: 84 }));
-  edges.forEach((e) => g.setEdge(e.source, e.target));
-
-  dagre.layout(g);
-
-  return nodes.map((n) => {
-    const pos = g.node(n.id);
-    n.position = { x: pos.x - 95, y: pos.y - 42 };
-    return n;
+  const graph = new dagre.graphlib.Graph();
+  graph.setDefaultEdgeLabel(() => ({}));
+  graph.setGraph({
+    rankdir: "TB",
+    nodesep: 40,
+    ranksep: 90,
+    marginx: 20,
+    marginy: 20,
   });
+
+  rows.forEach((row) => {
+    graph.setNode(row.uid, { width: nodeWidth, height: nodeHeight });
+
+    nodes.push({
+      id: row.uid,
+      type: "familyMember",
+      data: {
+        label: row.name,
+        fatherName: row.fatherName,
+        grandfatherName: row.grandfatherName,
+        generation: row.generation,
+      },
+      position: { x: 0, y: 0 },
+    });
+  });
+
+  const nameMap = new Map<string, SeedRow[]>();
+  rows.forEach((row) => {
+    const key = row.name.trim();
+    const list = nameMap.get(key) ?? [];
+    list.push(row);
+    nameMap.set(key, list);
+  });
+
+  rows.forEach((row) => {
+    if (!row.fatherName) return;
+
+    const possibleParents = nameMap.get(row.fatherName.trim()) ?? [];
+    let parent = possibleParents[0];
+
+    if (row.grandfatherName) {
+      const exact = possibleParents.find(
+        (p) => p.name === row.fatherName && p.fatherName === row.grandfatherName
+      );
+      if (exact) parent = exact;
+    }
+
+    if (!parent) return;
+
+    graph.setEdge(parent.uid, row.uid);
+
+    edges.push({
+      id: `${parent.uid}-${row.uid}`,
+      source: parent.uid,
+      target: row.uid,
+      animated: false,
+      type: "smoothstep",
+    });
+  });
+
+  dagre.layout(graph);
+
+  const laidOutNodes = nodes.map((node) => {
+    const p = graph.node(node.id);
+    return {
+      ...node,
+      position: {
+        x: p.x - nodeWidth / 2,
+        y: p.y - nodeHeight / 2,
+      },
+    };
+  });
+
+  return { nodes: laidOutNodes, edges };
 }

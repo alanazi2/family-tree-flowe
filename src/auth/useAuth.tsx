@@ -1,79 +1,38 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { supabase } from "../lib/supabaseClient";
 import type { Session, User } from "@supabase/supabase-js";
-import type { SystemRole, UserProfile } from "../components/Tree/treeTypes";
-import { getMyProfile, getMySystemRole } from "../lib/db";
+import { supabase } from "../lib/supabaseClient";
 
 type AuthCtx = {
   loading: boolean;
   user: User | null;
   session: Session | null;
-  profile: UserProfile | null;
-  systemRole: SystemRole;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthCtx | null>(null);
 
-function withTimeout<T>(p: Promise<T>, ms = 4000, label = "timeout") {
-  return new Promise<T>((resolve, reject) => {
-    const t = setTimeout(() => reject(new Error(label)), ms);
-    p.then((v) => {
-      clearTimeout(t);
-      resolve(v);
-    }).catch((e) => {
-      clearTimeout(t);
-      reject(e);
-    });
-  });
-}
-
-async function safeLoadProfileAndRole() {
-  try {
-    const [p, r] = await withTimeout(
-      Promise.all([getMyProfile(), getMySystemRole()]),
-      5000,
-      "profile/role timeout"
-    );
-    return { profile: p, role: r as SystemRole };
-  } catch (e) {
-    console.error("Failed to load profile/role:", e);
-    return { profile: null, role: "member" as SystemRole };
-  }
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [systemRole, setSystemRole] = useState<SystemRole>("member");
 
   async function refresh() {
-    setLoading(true);
     try {
-      const { data } = await withTimeout(supabase.auth.getSession(), 4000, "getSession timeout");
-      const s = data.session ?? null;
+      setLoading(true);
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.getSession();
 
-      setSession(s);
-      setUser(s?.user ?? null);
+      if (error) throw error;
 
-      if (s?.user) {
-        const res = await safeLoadProfileAndRole();
-        setProfile(res.profile);
-        setSystemRole(res.role);
-      } else {
-        setProfile(null);
-        setSystemRole("member");
-      }
-    } catch (e) {
-      console.error("Auth refresh failed:", e);
-      // لا تعلّق الصفحة حتى لو Supabase ما رد
+      setSession(session ?? null);
+      setUser(session?.user ?? null);
+    } catch (error) {
+      console.error("Auth refresh failed:", error);
       setSession(null);
       setUser(null);
-      setProfile(null);
-      setSystemRole("member");
     } finally {
       setLoading(false);
     }
@@ -82,39 +41,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     refresh();
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
-      setLoading(true);
-      try {
-        setSession(newSession);
-        setUser(newSession?.user ?? null);
-
-        if (newSession?.user) {
-          const res = await safeLoadProfileAndRole();
-          setProfile(res.profile);
-          setSystemRole(res.role);
-        } else {
-          setProfile(null);
-          setSystemRole("member");
-        }
-      } catch (e) {
-        console.error("onAuthStateChange handler failed:", e);
-        setProfile(null);
-        setSystemRole("member");
-      } finally {
-        setLoading(false);
-      }
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession ?? null);
+      setUser(newSession?.user ?? null);
+      setLoading(false);
     });
 
-    return () => sub.subscription.unsubscribe();
+    return () => subscription.unsubscribe();
   }, []);
 
   async function signOut() {
     await supabase.auth.signOut();
+    setSession(null);
+    setUser(null);
   }
 
-  const value = useMemo<AuthCtx>(
-    () => ({ loading, user, session, profile, systemRole, refresh, signOut }),
-    [loading, user, session, profile, systemRole]
+  const value = useMemo(
+    () => ({
+      loading,
+      user,
+      session,
+      refresh,
+      signOut,
+    }),
+    [loading, user, session]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

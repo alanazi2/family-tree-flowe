@@ -1,47 +1,46 @@
 import React from "react";
-import type { NodeProps } from "reactflow";
 import { Handle, Position } from "reactflow";
-import { FaMale, FaFemale } from "react-icons/fa";
 
-export default function FamilyMemberNode({ data }: NodeProps<any>) {
-  const gender = data.gender as "male" | "female";
-  const Icon = gender === "male" ? FaMale : FaFemale;
-
+export default function FamilyMemberNode({ data }: any) {
   return (
     <div
       style={{
-        padding: 10,
-        borderRadius: 16,
-        border: "1px solid rgba(255,255,255,0.18)",
-        background: "rgba(255,255,255,0.06)",
-        minWidth: 180,
+        minWidth: 220,
+        borderRadius: 20,
+        padding: 14,
+        background: "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04))",
+        border: "1px solid rgba(200,164,77,0.35)",
+        color: "#F8F7F2",
         boxShadow: "0 18px 40px rgba(0,0,0,0.35)",
+        textAlign: "center",
+        backdropFilter: "blur(10px)",
       }}
-      dir="rtl"
     >
-      <Handle type="target" position={Position.Top} style={{ opacity: 0.6 }} />
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <div
-          style={{
-            width: 34,
-            height: 34,
-            borderRadius: 12,
-            display: "grid",
-            placeItems: "center",
-            background: "rgba(124,58,237,0.25)",
-            border: "1px solid rgba(124,58,237,0.30)",
-          }}
-        >
-          <Icon />
-        </div>
-        <div>
-          <div style={{ fontWeight: 900 }}>{data.full_name}</div>
-          <div style={{ fontSize: 12, opacity: 0.75 }}>
-            {data.is_deceased ? "متوفى" : "حي"} • {data.gender === "male" ? "ذكر" : "أنثى"}
-          </div>
-        </div>
+      <Handle type="target" position={Position.Top} style={{ background: "#C8A44D" }} />
+
+      <div style={{ fontSize: 18, fontWeight: 900, color: "#E7D39A" }}>
+        {data.label}
       </div>
-      <Handle type="source" position={Position.Bottom} style={{ opacity: 0.6 }} />
+
+      {data.fatherName ? (
+        <div style={{ marginTop: 8, fontSize: 12, color: "rgba(248,247,242,0.72)" }}>
+          الأب: {data.fatherName}
+        </div>
+      ) : null}
+
+      {data.grandfatherName ? (
+        <div style={{ marginTop: 4, fontSize: 12, color: "rgba(248,247,242,0.62)" }}>
+          الجد: {data.grandfatherName}
+        </div>
+      ) : null}
+
+      {data.generation ? (
+        <div style={{ marginTop: 8, fontSize: 11, color: "#C8A44D" }}>
+          الجيل / الترتيب: {data.generation}
+        </div>
+      ) : null}
+
+      <Handle type="source" position={Position.Bottom} style={{ background: "#C8A44D" }} />
     </div>
   );
 }

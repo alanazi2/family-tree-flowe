@@ -27,7 +27,7 @@ export default function WelcomeNewUserPage() {
 
           <p className="welcomeText soft">
             شويّة وقت بس، وإن شاء الله تشوفون منصة تشرح الصدر وتخدم احتياجكم
-            بالشكل اللي يبيض الوجه.
+            بالشكل اللي يبيض الوجه. 
           </p>
 
           <div className="welcomeActions">
@@ -40,5 +40,5 @@ export default function WelcomeNewUserPage() {
         </div>
       </div>
     </PageTransition>
-  );
+  );  
 }

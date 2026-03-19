@@ -67,7 +67,7 @@ export default function FamiliesPage() {
                 <option value="">بدون</option>
                 {families.map((f) => (
                   <option key={f.id} value={f.id}>
-                    {f.name}
+                    {f.family_name ?? f.name ?? "-"}
                   </option>
                 ))}
               </select>
@@ -90,8 +90,8 @@ export default function FamiliesPage() {
               <tbody>
                 {families.map((f) => (
                   <tr key={f.id}>
-                    <td>{f.name}</td>
-                    <td style={{ fontFamily: "monospace" }}>{f.invite_code}</td>
+                    <td>{f.family_name ?? f.name ?? "-"}</td>
+<td style={{ fontFamily: "monospace" }}>{f.invite_code ?? "-"}</td>
                     <td>
                       <div className="rowWrap">
                         <Link className="btnGhost" to={`/tree/${f.id}`}>فتح الشجرة</Link>

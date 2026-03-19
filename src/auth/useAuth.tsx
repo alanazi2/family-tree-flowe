@@ -1,13 +1,14 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabaseClient";
-
-export type SystemRole = "super_admin" | "family_admin" | "member";
+import { getMyProfile, getMySystemRole } from "../lib/db";
+import type { SystemRole, UserProfile } from "../components/Tree/treeTypes";
 
 type AuthCtx = {
   loading: boolean;
   user: User | null;
   session: Session | null;
+  profile: UserProfile | null;
   systemRole: SystemRole;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -19,8 +20,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-
-  // مؤقتًا نخليه member حتى يمر البناء
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [systemRole, setSystemRole] = useState<SystemRole>("member");
 
   async function refresh() {
@@ -28,21 +28,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(true);
 
       const {
-        data: { session },
+        data: { session: currentSession },
         error,
       } = await supabase.auth.getSession();
 
       if (error) throw error;
 
-      setSession(session ?? null);
-      setUser(session?.user ?? null);
+      setSession(currentSession ?? null);
+      setUser(currentSession?.user ?? null);
 
-      // مؤقتًا
-      setSystemRole("member");
+      if (currentSession?.user) {
+        try {
+          const [profileData, roleData] = await Promise.all([
+            getMyProfile().catch(() => null),
+            getMySystemRole().catch(() => "member" as SystemRole),
+          ]);
+
+          setProfile(profileData);
+          setSystemRole(roleData ?? "member");
+        } catch (e) {
+          console.error("Failed to load profile/role:", e);
+          setProfile(null);
+          setSystemRole("member");
+        }
+      } else {
+        setProfile(null);
+        setSystemRole("member");
+      }
     } catch (error) {
       console.error("Auth refresh failed:", error);
       setSession(null);
       setUser(null);
+      setProfile(null);
       setSystemRole("member");
     } finally {
       setLoading(false);
@@ -54,10 +71,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
       setSession(newSession ?? null);
       setUser(newSession?.user ?? null);
-      setSystemRole("member");
+
+      if (newSession?.user) {
+        try {
+          const [profileData, roleData] = await Promise.all([
+            getMyProfile().catch(() => null),
+            getMySystemRole().catch(() => "member" as SystemRole),
+          ]);
+
+          setProfile(profileData);
+          setSystemRole(roleData ?? "member");
+        } catch (e) {
+          console.error("Failed to load profile/role:", e);
+          setProfile(null);
+          setSystemRole("member");
+        }
+      } else {
+        setProfile(null);
+        setSystemRole("member");
+      }
+
       setLoading(false);
     });
 
@@ -68,6 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
     setSession(null);
     setUser(null);
+    setProfile(null);
     setSystemRole("member");
   }
 
@@ -76,11 +113,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       user,
       session,
+      profile,
       systemRole,
       refresh,
       signOut,
     }),
-    [loading, user, session, systemRole]
+    [loading, user, session, profile, systemRole]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

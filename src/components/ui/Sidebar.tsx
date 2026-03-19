@@ -1,34 +1,32 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
-import { FaHome, FaUsers, FaProjectDiagram, FaCrown } from "react-icons/fa";
+import { FaCalendarAlt, FaCrown, FaSitemap, FaUsers } from "react-icons/fa";
 import { useAuth } from "../../auth/useAuth";
 
 export default function Sidebar() {
   const { systemRole } = useAuth();
 
   return (
-    <aside className="sidebar">
-      <NavLink className="sideLink" to="/">
-        <FaHome /> الرئيسية
+    <div className="nav" dir="rtl">
+      <NavLink to="/dashboard">
+        <FaSitemap /> الصفحة العامة
       </NavLink>
 
-      <NavLink className="sideLink" to="/families">
-        <FaUsers /> العوائل
-      </NavLink>
-
-      <NavLink className="sideLink" to="/tree">
-        <FaProjectDiagram /> الشجرة
-      </NavLink>
-
-      {systemRole === "super_admin" || systemRole === "family_admin" ? (
-        <NavLink className="sideLink" to="/dashboards/admin">
-          <FaCrown /> لوحة الإدارة
-        </NavLink>
-      ) : (
-        <NavLink className="sideLink" to="/dashboards/user">
-          <FaCrown /> لوحتي
+      {(systemRole === "family_admin" || systemRole === "super_admin") && (
+        <NavLink to="/admin">
+          <FaCrown /> لوحة إدارة العائلة
         </NavLink>
       )}
-    </aside>
+
+      {(systemRole === "family_admin" || systemRole === "super_admin") && (
+        <NavLink to="/admin/events">
+          <FaCalendarAlt /> إدارة الفعاليات
+        </NavLink>
+      )}
+
+      <NavLink to="/my-families">
+        <FaUsers /> عوائلي
+      </NavLink>
+    </div>
   );
 }
